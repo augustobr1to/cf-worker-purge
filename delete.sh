@@ -3,15 +3,25 @@ set -euo pipefail
 
 # ─────────────────────────────────────────────────────────────────
 # Usage:
-#   ./delete.sh <CF_API_TOKEN> <ACCOUNT_ID> <PROJECT_NAME>
-#
-# Example:
-#   ./delete.sh "tok_abc123" "a1b2c3d4" "my-pages-project"
+#   cp .env.example .env   # fill in your values
+#   ./delete.sh
 # ─────────────────────────────────────────────────────────────────
 
-CF_API_TOKEN="${1:?Usage: $0 <CF_API_TOKEN> <ACCOUNT_ID> <PROJECT_NAME>}"
-ACCOUNT_ID="${2:?Missing ACCOUNT_ID}"
-PROJECT_NAME="${3:?Missing PROJECT_NAME}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/.env"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "❌ .env file not found. Copy .env.example and fill in your values:"
+  echo "   cp .env.example .env"
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+
+CF_API_TOKEN="${CF_API_TOKEN:?CF_API_TOKEN is not set in .env}"
+ACCOUNT_ID="${ACCOUNT_ID:?ACCOUNT_ID is not set in .env}"
+PROJECT_NAME="${PROJECT_NAME:?PROJECT_NAME is not set in .env}"
 
 # ── Colors ────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -29,32 +39,6 @@ for dep in curl jq; do
     exit 1
   fi
 done
-
-# ── Check wrangler ────────────────────────────────────────────────
-echo -e "${CYAN}🔍 Checking for wrangler...${RESET}"
-
-if ! command -v wrangler &>/dev/null; then
-  echo -e "${YELLOW}⚠️  wrangler is not installed.${RESET}"
-
-  if command -v brew &>/dev/null; then
-    echo -ne "${YELLOW}Homebrew detected. Install wrangler now? [y/N]: ${RESET}"
-    read -r INSTALL_CONFIRM
-    if [[ "$INSTALL_CONFIRM" =~ ^[Yy]$ ]]; then
-      echo -e "${CYAN}📦 Installing wrangler via Homebrew...${RESET}"
-      brew install cloudflare-wrangler
-    else
-      echo -e "${RED}❌ wrangler is required. Aborting.${RESET}"
-      exit 1
-    fi
-  else
-    echo -e "${RED}❌ Homebrew not found. Please install wrangler manually:${RESET}"
-    echo -e "   ${BOLD}npm install -g wrangler${RESET}   or   ${BOLD}brew install cloudflare-wrangler${RESET}"
-    exit 1
-  fi
-else
-  WRANGLER_VERSION=$(wrangler --version 2>&1 | head -n1)
-  echo -e "${GREEN}✅ wrangler found: ${WRANGLER_VERSION}${RESET}"
-fi
 
 export CLOUDFLARE_API_TOKEN="${CF_API_TOKEN}"
 
@@ -139,13 +123,14 @@ FAILED=0
 
 for ID in "${TO_DELETE[@]}"; do
   echo -ne "   Deleting ${ID}... "
-  if wrangler pages deployment delete "$ID" \
-      --project-name "$PROJECT_NAME" \
-      --force 2>/dev/null; then
+  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+    "${BASE_URL}/${ID}?force=true" \
+    "${AUTH_HEADERS[@]}")
+  if [[ "$HTTP_STATUS" == "200" || "$HTTP_STATUS" == "204" ]]; then
     echo -e "${GREEN}✔ done${RESET}"
     ((DELETED++))
   else
-    echo -e "${RED}✖ failed${RESET}"
+    echo -e "${RED}✖ failed (HTTP ${HTTP_STATUS})${RESET}"
     ((FAILED++))
   fi
   sleep 0.3

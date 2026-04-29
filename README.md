@@ -73,31 +73,29 @@ You do **not** need Zone-level permissions for this script.
 
 ```bash
 chmod +x delete.sh
+cp .env.example .env
 ```
+
+Then open `.env` and fill in your values:
+
+```dotenv
+CF_API_TOKEN=cfut_abc123yourtoken
+ACCOUNT_ID=a1b2c3d4e5f6youraccount
+PROJECT_NAME=my-pages-project
+```
+
+| Variable        | Where to find it                                             |
+|-----------------|--------------------------------------------------------------|
+| `CF_API_TOKEN`  | API token you created above                                  |
+| `ACCOUNT_ID`    | Cloudflare Dashboard → right sidebar, under **Account ID**  |
+| `PROJECT_NAME`  | Exact name of the Pages project (e.g. `my-pages-project`)   |
 
 ---
 
 ## Usage
 
 ```bash
-./delete.sh <CF_API_TOKEN> <ACCOUNT_ID> <PROJECT_NAME>
-```
-
-### Arguments
-
-| Argument        | Where to find it                                             |
-|-----------------|--------------------------------------------------------------|
-| `CF_API_TOKEN`  | API token you created above                                  |
-| `ACCOUNT_ID`    | Cloudflare Dashboard → right sidebar, under **Account ID**  |
-| `PROJECT_NAME`  | Exact name of the Pages project (e.g. `my-pages-project`)   |
-
-### Example
-
-```bash
-./delete.sh \
-  "cfut_abc123yourtoken" \
-  "a1b2c3d4e5f6youraccount" \
-  "my-pages-project"
+./delete.sh
 ```
 
 ---
